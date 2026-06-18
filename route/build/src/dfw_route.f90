@@ -241,7 +241,6 @@ CONTAINS
  real(dp)                        :: depth          ! flow depth [m]
  real(dp)                        :: ck             ! kinematic wave celerity [m/s]
  real(dp)                        :: dk             ! diffusivity [m2/s]
- real(dp), allocatable           :: Qlocal(:,:)    ! sub-reach & sub-time step discharge at previous and current time step [m3/s]
  real(dp), allocatable           :: Qprev(:)       ! sub-reach discharge at previous time step [m3/s]
  real(dp)                        :: dTsub          ! time inteval for sub time-step [sec]
  real(dp)                        :: qoutTmp        ! temporary scalar for discharge from reach
@@ -263,16 +262,16 @@ CONTAINS
            zc        => rch_param%SIDE_SLOPE, & ! channel side slope
            zf        => rch_param%FLDP_SLOPE, & ! floodplain slope
            bankVol   => rch_param%R_STORAGE,  & ! bankful volume
-           L         => rch_param%RLENGTH)      ! channel length
+           L         => rch_param%RLENGTH,    & ! channel length
+           Qnode     => rstate%molecule%Q)
 
  if (.not. isHW .or. hw_drain_point==top_reach) then
 
    if (L > min_length_route) then
 
+   ! initialize previous time step flow
    allocate(Qprev(nMolecule), stat=ierr, errmsg=cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-   ! initialize previous time step flow
    Qprev(1:nMolecule) = rstate%molecule%Q     ! flow state at previous time step
 
    if (verbose) then
@@ -289,9 +288,6 @@ CONTAINS
      write(iulog,'(A,1X,I3,A,1X,G12.5)') ' No. sub timestep=',nTsub,' sub time-step [sec]=',dTsub
    end if
 
-   allocate(Qlocal(1:nMolecule, 0:1), stat=ierr, errmsg=cmessage)
-   if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
-
    do it = 1, nTsub
      Qbar = (Qupstream+Qprev(1)+Qprev(nMolecule-1))/3.0 ! 3 point average discharge [m3/s]
      depth = flow_depth(abs(Qbar), bt, zc, S, n, zf=zf, bankDepth=bankDepth) ! compute flow depth as normal depth (a function of flow)
@@ -306,21 +302,22 @@ CONTAINS
                     dk,                 & ! input: diffusivity [m2/s]
                     Qlat,               & ! input: lateral quantity into chaneel [unit of quantity]
                     Qprev,              & ! input: quantity at previous time step [unit of quantity]
-                    Qlocal,             & ! inout: quantity soloved at current time step [unit of quantity]
+                    Qnode,              & ! inout: quantity soloved at current time step [unit of quantity]
                     verbose,            & ! input: reach index to be examined
                     advec_scheme=advec_scheme, & ! optional input: advection scheme (1->central difference, 2->upwind)
                     downstreamBC=downBC)         ! optional input: downstream boundary condition (1->Neumann, 2->open boundary condition)
+     if (it<nTsub) Qprev = Qnode
    end do
 
    ! For very low flow condition, outflow - inflow may exceed current storage, so limit outflow and adjust flow profile
-   if (abs(Qlocal(nMolecule-1,1))>0._dp) then
+   if (abs(Qnode(nMolecule-1))>0._dp) then
      volTmp = max(0._dp, rflux%ROUTE(idxDW)%REACH_VOL(1))
-     qoutTmp = Qlocal(nMolecule-1,1)*dt
+     qoutTmp = Qnode(nMolecule-1)*dt
      pcntReduc = min((volTmp + dt*Qupstream)*0.999_dp/qoutTmp, 1._dp)
-     Qlocal(2:nMolecule,1) = Qlocal(2:nMolecule,1)*pcntReduc
+     Qnode(2:nMolecule) = Qnode(2:nMolecule)*pcntReduc
    end if
 
-   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(1) + (Qupstream - Qlocal(nMolecule-1,1))*dt
+   rflux%ROUTE(idxDW)%REACH_VOL(1) = rflux%ROUTE(idxDW)%REACH_VOL(1) + (Qupstream - Qnode(nMolecule-1))*dt
 
    ! if reach volume exceeds flood threshold volume, excess water is flooded volume.
    if (rflux%ROUTE(idxDW)%REACH_VOL(1) > bankVol) then
@@ -332,15 +329,12 @@ CONTAINS
    rflux%ROUTE(idxDW)%REACH_ELE = water_height(rflux%ROUTE(idxDW)%REACH_VOL(1)/L, bt, zc, zf=zf, bankDepth=bankDepth)
 
    ! store final outflow in data structure
-   rflux%ROUTE(idxDW)%REACH_Q = Qlocal(nMolecule-1,1) + Qlat
-
-   ! update state
-   rstate%molecule%Q = Qlocal(:,1)
+   rflux%ROUTE(idxDW)%REACH_Q = Qnode(nMolecule-1) + Qlat
 
    else ! length < min_length_route: length is short enough to just pass upstream to downstream
      rflux%ROUTE(idxDW)%REACH_Q = Qupstream + Qlat
-     rstate%molecule%Q(1:nMolecule) = 0._dp
-     rstate%molecule%Q(nMolecule)   = rflux%ROUTE(idxDW)%REACH_Q
+     Qnode(1:nMolecule) = 0._dp
+     Qnode(nMolecule)   = rflux%ROUTE(idxDW)%REACH_Q
 
      rflux%ROUTE(idxDW)%REACH_VOL(0) = 0._dp
      rflux%ROUTE(idxDW)%REACH_VOL(1) = 0._dp
@@ -356,12 +350,8 @@ CONTAINS
    rflux%ROUTE(idxDW)%FLOOD_VOL(1) = 0._dp
    rflux%ROUTE(idxDW)%REACH_ELE    = 0._dp
 
-   rstate%molecule%Q(1:nMolecule) = 0._dp
-   rstate%molecule%Q(nMolecule)   = rflux%ROUTE(idxDW)%REACH_Q
-
-   if (verbose) then
-     write(iulog,'(A)')            ' This is headwater '
-   endif
+   Qnode(1:nMolecule) = 0._dp
+   Qnode(nMolecule)   = rflux%ROUTE(idxDW)%REACH_Q
 
  endif
 
