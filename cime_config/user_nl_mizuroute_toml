@@ -2,7 +2,7 @@
 # This is for changes to the mizuRoute control file only
 # Changes to the namelist file need to go in the user_nl_mizuRoute file
 #
-# See ../route/settings/SAMPLE-coupled.toml
+# See ../route/settings/SAMPLE-coupled_toml
 #
 # Here are some examples (remove the leading #):
 #
