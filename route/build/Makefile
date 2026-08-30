@@ -274,6 +274,14 @@ ifdef PNETCDF_PATH
         LDFLAGS    += -L$(PNETCDF_PATH)/lib -lpnetcdf
 endif
 
+TOMLLIBDIR = $(F_MASTER)../externals/toml-f/_install
+
+$(TOMLLIBDIR)/lib/libtoml-f.a:
+	@mkdir -p $(F_MASTER)../externals/toml-f/_build
+	cd $(F_MASTER)../externals/toml-f/_build && \
+	cmake -DCMAKE_Fortran_COMPILER=$(FC_EXE) -DCMAKE_INSTALL_PREFIX=$(TOMLLIBDIR) .. && \
+	$(MAKE) && $(MAKE) install
+
 $(PIOLIB):
 	cd $(LIBDIR); \
 	$(MAKE) $(MFLAGS) F_MASTER=$(F_MASTER) FC=$(FC_EXE) FC_EXE=$(FC_EXE) FLAGS="$(FLAGS)" \

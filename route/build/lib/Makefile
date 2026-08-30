@@ -91,6 +91,7 @@ cleanpiolib:
 .PHONY : cleanpiolib
 
 $(PIOLIBMAKE):
+	mkdir -p $(PIOLIBDIR); \
 	cd $(PIOLIBDIR); \
 	$(CMAKE_ENV_VARS) cmake $(CMAKE_OPTS) $(MODEARGS) $(PIO2DIR)
 
