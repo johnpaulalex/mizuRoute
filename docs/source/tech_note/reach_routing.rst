@@ -1,77 +1,11 @@
 
-.. _Reach_routing_oveall_workflow:
-
-Overall workflow
-======================
-
-Overall computation workflow is shown in :numref:`Figure_overall_comp_workflow`. Starting with runoff depth from netCDF or coupler (e.g. CTSM coupling),
-
-#. Remap runoff depth [m/s] to river network HRU (Hydrologic Response Unit or simply catchment), :math:`R_{lat}`, if runoff is given at hydrologic model HRU
-
-#. Convert :math:`R_{lat}` from depth unit to volume (:math:`R_{lat}` times HRU area) to get lateral runoff volume (:math:`q_{lat}`) [m3/s]
-
-#. Perform hillslope routing to delay lateral runoff volume, if travel time of runoff is not counted outside mizuRoute.
-
-#. Route inflow from upstream and add delayed lateral discharge to routed inflow at each river reach outlet.
-
-The hillslope routing method currently uses a simple unit hydrograph based on gamma distribution (only one method available) to delay instantaneous runoff.
-See :ref:`Hillslope routing scheme <Hillslope_routing_scheme>`).
-
-The river reach routing needs to be performed in the order of upstream-to-downstream to complete the routing in the entire network.
-This routing order is internally computed in mizuRoute based on network topology information, ``downSegId`` (immediate downstream reach ID)
-
-.. _Figure_overall_comp_workflow:
-
-.. figure:: images/overall_comp_workflow.png
- :width: 700
- :height: 400
-
- Overall routing procedures from runoff input into model to streamflow computation.
-
-.. _Hillslope_routing_scheme:
-
-Hillslope routing scheme
-========================
-
-MizuRoute uses a similar concept to a unit-hydrograph commonly used in engineering hydrology to account for travel time of instantaneous runoff to the river reach (delay and attenuate runoff).
-A unit-hydrograph is defined by a hydrograph (time series of discharge) that is derived from a unit depth of excess rainfall on a drainage area within a specific time period.
-Here, this concept is applied to directly runoff volume over a HRU, instead of rainfall excess over a drainage area.
-Therefore, a unit-hydrograph represents a time series of lateral discharge into a river reach from a HRU derived from a unit volume of runoff.
-Here, a probability density function (PDF) is used as a unit-hydrograph, so that cumulative sum of PDF is 1.0.
-This means that runoff volume at a current time step is just distributed in the future, with the sum of future distributed runoff is equal to the current runoff volume (i.e., volume conserved)
-
-To get actual delayed lateral flow series to the river reach, unit-hydrograph convolution is performed as below:
-
-.. _Figure_uh_convolution:
-
-.. figure:: images/uh_convolution.png
- :width: 700
- :height: 500
-
- Illustration of discrete Unit hydrograph convolution.
-
-In mizuRoute, gamma distribution is used for PDF-based unit-hydrograph and written as:
-
-.. math::
-   :label: gamma_distribution
-
-   f(t; a, \theta) = \frac{1}{\Gamma(a)\theta^{a}}t^{a - 1} e^{-\frac{t}{\theta}},
-   \quad t > 0
-
-where *t* is time [sec], *a* is a shape parameter [–] (a > 0), and :math:`\theta` is a timescale parameter [sec].
-Both the shape and timescale parameters affect the peak time of (mode of the distribution: :math:`(a - 1)\theta` and flashiness (variance of the distribution: :math:`a\theta^2` of the unit-hydrograph (UH).
-These UH should depend on the physical HRU characteristics. Continuous gamm distribution is descritized per time step before the convolution performed.
-These shape and scale parameters are currently specified as a spatially constant parameter (see :ref:`Spatially-constant parameter namelist <namelist_file>`), though they could be provided as spatially distributed parameters from river data netCDF (potential future implementation)
-
-Also, please see section 3.1 in :ref:`Mizukami et al. 2016 <Mizukami2016>` for hillslope routing theory.
-
 .. _River_routing_schemes:
 
 River routing schemes
 ======================
 
 For river reach routing, mizuRoute include five different routing methods. The routing method(s) are applied to each river reach to compute outflow from the reach.
-The methods are Impulse response function (routOpt=1 in mizuRoute), Lagrangian kinmatic wave (routOpt=2), Euler kinematic wave (routOpt=3), Muskingum Cunge (routOpt=4)), and Diffusive wave (routOpt=5).
+The methods are Impulse response function (``routOpt`` =1 in mizuRoute), Lagrangian kinmatic wave (``routOpt`` =2), Euler kinematic wave (``routOpt`` =3), Muskingum Cunge (``routOpt`` =4)), and Diffusive wave (``routOpt`` =5).
 
 This section describes each scheme including numerical implementation.
 Impulse response function and lagrangian kinematic wave, implemented eariler, are also described in :ref:`Mizukami et al. (2016) <Mizukami2016>`.
@@ -94,6 +28,7 @@ where *Q* is a discharge [m\ :sup:`3`\/s] at time t and a point of reach x,
 *h* is flow height [m],
 :math:`S_{0}` is a slope of reach [m/m],
 :math:`S_{f}` is a friction slope [m/m].
+:math:`q_{lat}` is lateral inflow from a local catchment per unit reach length[m\ :sup:`3`\/s/m].
 LHS of :eq:`0.2` consists of advection, inertia, and pressure gradient from the 1st to 3rd terms, while force temrs of RHS of :eq:`0.2` consists of gravity and frictional force from a river bed.
 
 The frictional slope is written as:
@@ -128,6 +63,7 @@ If advection and inertia terms are neglected (i.e., the 1st and 2nd terms in LHS
    D = \frac{K^2}{2QB}
 
 where *C* (Eq. :eq:`0.6`) is a wave celerity [m/s] and *D* (Eq. :eq:`0.7`) is a diffusivity [m\ :sup:`2`\/s]. *B* is a top width of flow cross-sectional area [m].
+For a complete derivation of diffusive wave equation (Eq. :eq:`0.5`) from Eqs :eq:`0.1` and :eq:`0.2`), please see :ref:`diffusive-wave_equation_derivation`
 
 If *D* is set to zero (i.e., diffusion is neglected), Eq. :eq:`0.5` becomes kinematic wave equation.
 The other way to derive kinematic wave equation is to neglect pressure gradient term in addition to advection and inertia and pressure gradient terms (i.e., all the terms in LHS of Eq. :eq:`0.2`).
@@ -244,7 +180,7 @@ The resulting discretized diffusive wave equation becomes:
    :label: 5.5
 
    \frac{Q_{j}^{t+1} - Q_{j}^{t}}{\Delta t} + \frac{C}{2 \Delta x} \cdot ((1- \alpha )(Q_{j+1}^{t} - Q_{j-1}^{t})+ \alpha (Q_{j+1}^{t+1} - Q_{j-1}^{t+1})) = \\\\
-   D \cdot (\frac{(1- \beta)(Q_{j+1}^{t} - 2Q_{j}^{t} + Q_{j-1}^{t})}{(\Delta x)^2} + \frac{\beta (Q_{j+1}^{t+1} - 2Q_{j}^{t+1} +Q_{j-1}^{t+1})}{(\Delta x)^2})
+   D \cdot (\frac{(1- \beta)(Q_{j+1}^{t} - 2Q_{j}^{t} + Q_{j-1}^{t})}{(\Delta x)^2} + \frac{\beta (Q_{j+1}^{t+1} - 2Q_{j}^{t+1} +Q_{j-1}^{t+1})}{(\Delta x)^2}) + C \cdot q_{l}^{t}
 
 Rearranging Eq. :eq:`5.5` to:
 
@@ -255,6 +191,7 @@ Rearranging Eq. :eq:`5.5` to:
    -[(1- \alpha )C_{d} - 2(1- \beta )C_{d})] \cdot Q_{j+1}^{t} \\\\
    + [2-4(1- \beta )C_{d}] \cdot Q_{j}^{t} \\\\
    + [(1- \alpha )C_{a} + 2(1- \beta )C_{d})] \cdot Q_{j-1}^{t} \\\\
+   + 2\Delta t \cdot C \cdot q_{l}^{t} \\\\
 
    C_{a} = \frac{C \Delta t}{ \Delta x}, C_{d} = \frac{D \Delta t}{( \Delta x)^{2}}
 
@@ -307,24 +244,70 @@ For example, with 4 internal nodes as shown in, the matrix form of the equations
    \small b=
    \left[ \begin {array}{c}
    Q_{1}^{t+1} \cr
-   ((1-\alpha)C_{a} + 2(1-\beta)C_{d}) \cdot Q_{1}^{t} + (2-4(1-\beta)C_{d}) \cdot Q_{2}^{t} - ((1-\alpha)C_{a}-2(1-\beta)C_{d}) \cdot Q_{3}^{t} \cr
-   ((1-\alpha)C_{a} + 2(1-\beta)C_{d}) \cdot Q_{2}^{t} + (2-4(1-\beta)C_{d}) \cdot Q_{3}^{t} - ((1-\alpha)C_{a}-2(1-\beta)C_{d}) \cdot Q_{4}^{t} \cr
-   ((1-\alpha)C_{a} + 2(1-\beta)C_{d}) \cdot Q_{3}^{t} + (2-4(1-\beta)C_{d}) \cdot Q_{4}^{t} - ((1-\alpha)C_{a}-2(1-\beta)C_{d}) \cdot Q_{5}^{t} \cr
+   ((1-\alpha)C_{a} + 2(1-\beta)C_{d}) \cdot Q_{1}^{t} + (2-4(1-\beta)C_{d}) \cdot Q_{2}^{t} - ((1-\alpha)C_{a}-2(1-\beta)C_{d}) \cdot Q_{3}^{t} + 2\Delta \cdot C \cdot q_{l}^{t} \cr
+   ((1-\alpha)C_{a} + 2(1-\beta)C_{d}) \cdot Q_{2}^{t} + (2-4(1-\beta)C_{d}) \cdot Q_{3}^{t} - ((1-\alpha)C_{a}-2(1-\beta)C_{d}) \cdot Q_{4}^{t} + 2\Delta \cdot C \cdot q_{l}^{t} \cr
+   ((1-\alpha)C_{a} + 2(1-\beta)C_{d}) \cdot Q_{3}^{t} + (2-4(1-\beta)C_{d}) \cdot Q_{4}^{t} - ((1-\alpha)C_{a}-2(1-\beta)C_{d}) \cdot Q_{5}^{t} + 2\Delta \cdot C \cdot q_{l}^{t} \cr
    a \cdot dx
    \end {array} \right]
 
 
 The top row of the system of equations is upstream boundary conditions, which is inflow from upstream reaches (i.e., Dirichlet boundary condition).
-The Bottom row of the system of equations is downstream boundary condition.
-Here, Neumann boundary condition, which specifies the gradient of discharge between two adjacent nodes at the downstream end, is used.
-Neumann boundary condition at the downstream end is written by:
+The Bottom row of the system of equations is downstream boundary condition. Either Neumann boundary condition or open boundary condition is used
+Neumann boundary condition, which specifies the gradient of discharge between two adjacent nodes at the downstream end, is written by:
 
 .. math::
    :label: 5.10
 
-   \frac{\partial Q}{\partial x}\Big{|}_{x=5}
+   \frac{\partial Q}{\partial x}\Big{|}_{x=5} = a
 
 which is discretized as :math:`Q_{5}^{t+1} - Q_{4}^{t+1} = a \cdot dx`. The gradient at downstream end :math:`a` is approximated by the Q computed at the nodes at previous time step.
+
+Open boundary condition is written by:
+
+.. math::
+   :label: 5.11
+
+   \frac{\partial Q}{\partial t}\Big{|}_{x=5} + C \frac{\partial Q}{\partial x}\Big{|}_{x=5} = 0
+
+which is discretized as :math:`(1+\alpha C_{a}) \cdot Q_{5}^{t+1} - \alpha C_{a} \cdot Q_{4}^{t+1} = (1-(1-\alpha) C_{a}) \cdot Q_{5}^{t+1} + (1-\alpha) C_{a} \cdot Q_{4}^{t+1}`.
+
+The prognostic variable computed with diffusive wave equation solution is discharge, and the other variables such as river storage, flow depth, etc. are computed based on the computed discharge. For example, river storage is computed based on continuity equation
+
+.. math::
+   :label: 5.12
+
+   S^{t+1} = S^{t} + Qin^{t} - Q^{t} + q_{l}^{t} L
+
+where :math:`S^{t+1}` is river storage computed at current time step [m3], :math:`S^{t}` is river storage at previous time step [m3], :math:`Qin^{t}` is inflow from upstream at current time step [m3/s], :math:`L` is reach length [m].
+
+The table below summarize computational options involving diffusive wave equation solution:
+
+.. list-table:: Computational options to be considered for diffusive wave equation solution
+   :header-rows: 1
+   :widths: 20 20 20
+   :name: computational options for diffusive wave equation solution
+
+   * - Type of option
+     - Default option
+     - Available options
+   * - Number of sub-reaches (interal nodes)
+     - 20
+     - greater than 2 (1)
+   * - :math:`\alpha` (weight for space differece approximation)
+     - 1 (implicit)
+     - between 0 and 1
+   * - :math:`\beta` (weight for time difference approximation)
+     - 1 (implicit)
+     - between 0 and 1
+   * - Bottom boundary condition
+     - Neumann
+     - Neumann or open
+   * - Advection discretization scheme
+     - central difference
+     - centeral or upwind
+   * - Lateral flow input
+     - Bottom of reach
+     - Bottom or uniform along reach
 
 What makes this numerical solution become **kinematic wave solution** is simply to set *D* to zero.
 
