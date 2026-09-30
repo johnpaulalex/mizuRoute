@@ -4,7 +4,9 @@ MODULE read_control_module
 
 USE nrtype
 USE public_var
-USE tomlf
+USE tomlf, ONLY: toml_table, toml_error, toml_key, toml_stat, &
+                 toml_load, &
+                 toml_get_value => get_value
 
 implicit none
 
@@ -1077,7 +1079,7 @@ CONTAINS
     character(*), intent(out) :: var
     character(len=:), allocatable :: str_val
     integer :: stat
-    call get_value(table, key, str_val, stat=stat)
+    call toml_get_value(table, key, str_val, stat=stat)
     if (stat == toml_stat%success .and. allocated(str_val)) then
        var = str_val
     endif
@@ -1089,7 +1091,7 @@ CONTAINS
     integer(i4b), intent(inout) :: var
     integer :: int_val
     integer :: stat
-    call get_value(table, key, int_val, stat=stat)
+    call toml_get_value(table, key, int_val, stat=stat)
     if (stat == toml_stat%success) then
        var = int(int_val, i4b)
     endif
@@ -1101,7 +1103,7 @@ CONTAINS
     real(dp), intent(inout) :: var
     real(dp) :: real_val
     integer :: stat
-    call get_value(table, key, real_val, stat=stat)
+    call toml_get_value(table, key, real_val, stat=stat)
     if (stat == toml_stat%success) then
        var = real_val
     endif
@@ -1113,7 +1115,7 @@ CONTAINS
     real(sp), intent(inout) :: var
     real(sp) :: real_val
     integer :: stat
-    call get_value(table, key, real_val, stat=stat)
+    call toml_get_value(table, key, real_val, stat=stat)
     if (stat == toml_stat%success) then
        var = real_val
     endif
@@ -1125,7 +1127,7 @@ CONTAINS
     logical(lgt), intent(inout) :: var
     logical :: bool_val
     integer :: stat
-    call get_value(table, key, bool_val, stat=stat)
+    call toml_get_value(table, key, bool_val, stat=stat)
     if (stat == toml_stat%success) then
        var = bool_val
     endif
