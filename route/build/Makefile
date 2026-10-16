@@ -124,22 +124,27 @@ ifeq "$(FC)" "intel"
   endif
 endif
 
+# Nvidia NVHPC flags: -Mbackslash tells nvfortran to treat backslashes as character literals
+# rather than C-style escape characters, matching CESM/CIME machine definitions and toml-f syntax.
 ifeq "$(FC)" "nvidia"
   ifeq "$(MODE)" "fast"
-    FLAGS = -fast -O3 -Mdclchk $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
+    FLAGS = -fast -O3 -Mdclchk -Mbackslash $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -O0 $(FLAGS_OMP) -traceback -Mbounds -Mdclchk -Mchkptr -Mchkstk -Ktrap=divz,inv,ovf $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
+    FLAGS = -g -O0 -Mbackslash $(FLAGS_OMP) -traceback -Mbounds -Mdclchk -Mchkptr -Mchkstk -Ktrap=divz,inv,ovf $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
 
   endif
 endif
 
+# Cray CCE flags: -eZ enables macro expansion (replacing -cpp). -ef forces lowercase module
+# filenames to prevent case-sensitive linking errors. -eP was removed because emitting intermediate
+# .i preprocessed files causes CMake compiler link tests (ftn-2107) to fail during toml-f configuration.
 ifeq "$(FC)" "cray"
   ifeq "$(MODE)" "fast"
-    FLAGS = -O3 -eP $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
+    FLAGS = -O3 $(FLAGS_OMP) -eZ -ef -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
   ifeq "$(MODE)" "debug"
-    FLAGS = -g -O0 -h bounds -eP $(FLAGS_OMP) -cpp -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
+    FLAGS = -g -O0 -h bounds $(FLAGS_OMP) -eZ -ef -DVERSION=\"$(VERSION)\" -DBRANCH=\"$(GITBRCH)\" -DHASH=\"$(GITHASH)\"
   endif
 endif
 
@@ -278,11 +283,21 @@ endif
 
 TOMLLIBDIR = $(LIBDIR)/tomllib
 TOMLSRCDIR = $(F_MASTER)../libraries/toml-f
- 
+
+# Pass compiler-specific flags to toml-f CMake build: -Mbackslash for Nvidia, -ef for Cray.
+TOML_FFLAGS =
+ifeq "$(FC)" "nvidia"
+  TOML_FFLAGS = -Mbackslash
+endif
+ifeq "$(FC)" "cray"
+  TOML_FFLAGS = -ef
+endif
+
+# Build toml-f: -DBUILD_TESTING=OFF disables internal test suite to avoid Cray generic interface conflicts
 $(TOMLLIBDIR)/lib/libtoml-f.a:
 	@mkdir -p $(TOMLSRCDIR)/_build
 	cd $(TOMLSRCDIR)/_build && \
-	cmake -DCMAKE_Fortran_COMPILER=$(FC_EXE) -DCMAKE_INSTALL_PREFIX=$(TOMLLIBDIR) -DCMAKE_INSTALL_LIBDIR=lib .. && \
+	cmake -DBUILD_TESTING=OFF -DCMAKE_Fortran_COMPILER=$(FC_EXE) -DCMAKE_Fortran_FLAGS="$(TOML_FFLAGS)" -DCMAKE_INSTALL_PREFIX=$(TOMLLIBDIR) -DCMAKE_INSTALL_LIBDIR=lib .. && \
 	$(MAKE) && $(MAKE) install
 
 $(PIOLIB):
@@ -315,6 +330,7 @@ clean:
 						rm -f *.o
 						rm -f *.lst
 						rm -f *.mod
+						rm -f *.i
 						rm -f *__genmod.f90
 						@echo "Successfully cleaned object files"
 #

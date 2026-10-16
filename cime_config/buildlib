@@ -75,8 +75,17 @@ def _main_func():
             if not fc:
                 fc = "ftn"
 
+            compiler = case.get_value("COMPILER")
+            if compiler in ["nvhpc", "pgi"] or "nvfortran" in fc or "pgfortran" in fc:
+                # For Nvidia nvfortran, ensure backslashes are treated as character literals, matching CIME Macros.cmake
+                if "-Mbackslash" not in fflags:
+                    fflags = (fflags + " -Mbackslash").strip()
+
             if not os.path.isfile(os.path.join(tomlf_bld, "Makefile")):
-                cmake_cmd = 'cmake -DCMAKE_Fortran_COMPILER="{}" -DCMAKE_Fortran_FLAGS="{}" -DCMAKE_INSTALL_PREFIX="{}" "{}"'.format(
+                # Configure toml-f CMake build:
+                # - -DBUILD_TESTING=OFF: Disables internal test suite to avoid Cray generic interface conflicts.
+                # - -DCMAKE_INSTALL_LIBDIR=lib: Guarantees static library installs to lib/ rather than lib64/ on 64-bit Linux.
+                cmake_cmd = 'cmake -DBUILD_TESTING=OFF -DCMAKE_Fortran_COMPILER="{}" -DCMAKE_Fortran_FLAGS="{}" -DCMAKE_INSTALL_PREFIX="{}" -DCMAKE_INSTALL_LIBDIR=lib "{}"'.format(
                     fc, fflags, tomlf_inst, tomlf_src
                 )
                 rc_cmake, out_cmake, err_cmake = run_cmd(cmake_cmd, from_dir=tomlf_bld)
@@ -131,6 +140,8 @@ def _main_func():
         # Merge libtomlf.a object files into librof.a via MRI script
         #-------------------------------------------------------
         ar = case.get_value("AR") or "ar"
+        if not os.path.isdir(tomlf_bld):
+            os.makedirs(tomlf_bld)
         mri_script = os.path.join(tomlf_bld, "merge.mri")
         with open(mri_script, "w") as f:
             f.write("CREATE {}\n".format(complib))

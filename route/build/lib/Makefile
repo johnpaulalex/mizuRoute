@@ -36,7 +36,9 @@ ifdef MPIINC_PATHLIST
   INCLDIR += -I$(MPIINC)
 endif
 CPPDEFS += -DHAVE_MPI
-CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=mpif90
+# Allow compiler wrapper override (e.g. ftn on Cray systems) passed from top-level Makefile
+FC_EXE ?= mpif90
+CMAKE_OPTS += -DCMAKE_Fortran_COMPILER=$(FC_EXE)
 
 ifeq "$(isGPTL)" "yes"
   PIO_ENABLE_TIMING = ON
