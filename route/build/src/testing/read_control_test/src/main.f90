@@ -1,4 +1,4 @@
-! Unit tests verifying read_control_toml and read_control_legacy parity across all 226 keys
+! Unit tests verifying read_control_toml and read_control_legacy parity, schema sizing, outputFrequency types, defaults, and error handling
 program test_read_control
 
   USE nrtype
@@ -29,11 +29,12 @@ program test_read_control
   default_meta_PFAF    = meta_PFAF
 
   call test_parity_all_226_keys()
+  call test_var_lookup_schema_counts()
   call test_output_frequency_types()
   call test_default_preservation()
   call test_error_handling()
 
-  write(*, "(a)") "ALL read_control unit tests PASSED."
+  write(*, '(a)') 'ALL read_control unit tests PASSED.'
 
 contains
 
@@ -1042,5 +1043,54 @@ contains
 
     write(*, '(a)') '  [PASS] test_error_handling'
   end subroutine test_error_handling
+
+  ! Verify that runtime storage_size of all 20 var_lookup derived types matches nVars* and nStructures
+  subroutine test_var_lookup_schema_counts()
+    integer(i4b), parameter :: bits_per_int = storage_size(1_i4b) ! Standard 32 bits per 4-byte default integer (nrtype i4b)
+
+    type(iLook_struct)    :: t_struct
+    type(iLook_dims)      :: t_dims
+    type(iLook_stateDims) :: t_stateDims
+    type(iLook_qDims)     :: t_qDims
+    type(iLook_HRU)       :: t_HRU
+    type(iLook_HRU2SEG)   :: t_HRU2SEG
+    type(iLook_SEG)       :: t_SEG
+    type(iLook_NTOPO)     :: t_NTOPO
+    type(iLook_PFAF)      :: t_PFAF
+    type(iLook_RFLX)      :: t_RFLX
+    type(iLook_HFLX)      :: t_HFLX
+    type(iLook_KWT)       :: t_KWT
+    type(iLook_KW)        :: t_KW
+    type(iLook_DW)        :: t_DW
+    type(iLook_MC)        :: t_MC
+    type(iLook_IRF)       :: t_IRF
+    type(iLook_IRFbas)    :: t_IRFbas
+    type(iLook_basTracer) :: t_basTracer
+    type(iLook_basinQ)    :: t_basinQ
+    type(iLook_tracer)    :: t_tracer
+
+    call assert_int_eq(int(storage_size(t_struct)    / bits_per_int, i4b), nStructures,   'storage_size iLook_struct')
+    call assert_int_eq(int(storage_size(t_dims)      / bits_per_int, i4b), nDimensions,   'storage_size iLook_dims')
+    call assert_int_eq(int(storage_size(t_stateDims) / bits_per_int, i4b), nStateDims,    'storage_size iLook_stateDims')
+    call assert_int_eq(int(storage_size(t_qDims)     / bits_per_int, i4b), nqDims,        'storage_size iLook_qDims')
+    call assert_int_eq(int(storage_size(t_HRU)       / bits_per_int, i4b), nVarsHRU,      'storage_size iLook_HRU')
+    call assert_int_eq(int(storage_size(t_HRU2SEG)   / bits_per_int, i4b), nVarsHRU2SEG,  'storage_size iLook_HRU2SEG')
+    call assert_int_eq(int(storage_size(t_SEG)       / bits_per_int, i4b), nVarsSEG,      'storage_size iLook_SEG')
+    call assert_int_eq(int(storage_size(t_NTOPO)     / bits_per_int, i4b), nVarsNTOPO,    'storage_size iLook_NTOPO')
+    call assert_int_eq(int(storage_size(t_PFAF)      / bits_per_int, i4b), nVarsPFAF,     'storage_size iLook_PFAF')
+    call assert_int_eq(int(storage_size(t_RFLX)      / bits_per_int, i4b), nVarsRFLX,     'storage_size iLook_RFLX')
+    call assert_int_eq(int(storage_size(t_HFLX)      / bits_per_int, i4b), nVarsHFLX,     'storage_size iLook_HFLX')
+    call assert_int_eq(int(storage_size(t_KWT)       / bits_per_int, i4b), nVarsKWT,      'storage_size iLook_KWT')
+    call assert_int_eq(int(storage_size(t_KW)        / bits_per_int, i4b), nVarsKW,       'storage_size iLook_KW')
+    call assert_int_eq(int(storage_size(t_DW)        / bits_per_int, i4b), nVarsDW,       'storage_size iLook_DW')
+    call assert_int_eq(int(storage_size(t_MC)        / bits_per_int, i4b), nVarsMC,       'storage_size iLook_MC')
+    call assert_int_eq(int(storage_size(t_IRF)       / bits_per_int, i4b), nVarsIRF,      'storage_size iLook_IRF')
+    call assert_int_eq(int(storage_size(t_IRFbas)    / bits_per_int, i4b), nVarsIRFbas,   'storage_size iLook_IRFbas')
+    call assert_int_eq(int(storage_size(t_basTracer) / bits_per_int, i4b), nVarsBasTracer,'storage_size iLook_basTracer')
+    call assert_int_eq(int(storage_size(t_basinQ)    / bits_per_int, i4b), nVarsBasinQ,   'storage_size iLook_basinQ')
+    call assert_int_eq(int(storage_size(t_tracer)    / bits_per_int, i4b), nVarsTracer,   'storage_size iLook_tracer')
+
+    write(*, '(a)') '  [PASS] test_var_lookup_schema_counts'
+  end subroutine test_var_lookup_schema_counts
 
 end program test_read_control

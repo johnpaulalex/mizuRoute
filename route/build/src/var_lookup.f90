@@ -334,26 +334,27 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  ! ** define size of data vectors
  ! ***********************************************************************************************************
- integer(i4b),parameter,public    :: nStructures  = storage_size(ixStruct   )/iLength
- integer(i4b),parameter,public    :: nDimensions  = storage_size(ixDims     )/iLength
- integer(i4b),parameter,public    :: nStateDims   = storage_size(ixStateDims)/iLength
- integer(i4b),parameter,public    :: nqDims       = storage_size(ixQdims    )/iLength
- integer(i4b),parameter,public    :: nVarsHRU     = storage_size(ixHRU      )/iLength
- integer(i4b),parameter,public    :: nVarsHRU2SEG = storage_size(ixHRU2SEG  )/iLength
- integer(i4b),parameter,public    :: nVarsSEG     = storage_size(ixSEG      )/iLength
- integer(i4b),parameter,public    :: nVarsNTOPO   = storage_size(ixNTOPO    )/iLength
- integer(i4b),parameter,public    :: nVarsPFAF     = storage_size(ixPFAF    )/iLength
- integer(i4b),parameter,public    :: nVarsRFLX     = storage_size(ixRFLX    )/iLength
- integer(i4b),parameter,public    :: nVarsHFLX     = storage_size(ixHFLX    )/iLength
- integer(i4b),parameter,public    :: nVarsKWT      = storage_size(ixKWT     )/iLength
- integer(i4b),parameter,public    :: nVarsKW       = storage_size(ixKW      )/iLength
- integer(i4b),parameter,public    :: nVarsDW       = storage_size(ixDW      )/iLength
- integer(i4b),parameter,public    :: nVarsMC       = storage_size(ixMC      )/iLength
- integer(i4b),parameter,public    :: nVarsIRF      = storage_size(ixIRF     )/iLength
- integer(i4b),parameter,public    :: nVarsIRFbas   = storage_size(ixIRFbas  )/iLength
- integer(i4b),parameter,public    :: nVarsBasTracer= storage_size(ixBasTracer)/iLength
- integer(i4b),parameter,public    :: nVarsBasinQ   = storage_size(ixBasinQ  )/iLength
- integer(i4b),parameter,public    :: nVarsTracer   = storage_size(ixTracer  )/iLength
+ ! Hardcoded field counts corresponding to ix* type constructors above; note storage_size(derived_type) evaluates to 0 in Cray CCE (note it gives right answer at runtime but that would require a larger refactor)
+ integer(i4b),parameter,public    :: nStructures  = 5
+ integer(i4b),parameter,public    :: nDimensions  = 7
+ integer(i4b),parameter,public    :: nStateDims   = 12
+ integer(i4b),parameter,public    :: nqDims       = 4
+ integer(i4b),parameter,public    :: nVarsHRU     = 1
+ integer(i4b),parameter,public    :: nVarsHRU2SEG = 4
+ integer(i4b),parameter,public    :: nVarsSEG     = 73
+ integer(i4b),parameter,public    :: nVarsNTOPO   = 22
+ integer(i4b),parameter,public    :: nVarsPFAF    = 1
+ integer(i4b),parameter,public    :: nVarsRFLX    = 31
+ integer(i4b),parameter,public    :: nVarsHFLX    = 1
+ integer(i4b),parameter,public    :: nVarsKWT     = 6
+ integer(i4b),parameter,public    :: nVarsKW      = 3
+ integer(i4b),parameter,public    :: nVarsDW      = 3
+ integer(i4b),parameter,public    :: nVarsMC      = 3
+ integer(i4b),parameter,public    :: nVarsIRF     = 3
+ integer(i4b),parameter,public    :: nVarsIRFbas  = 1
+ integer(i4b),parameter,public    :: nVarsBasTracer= 1
+ integer(i4b),parameter,public    :: nVarsBasinQ  = 1
+ integer(i4b),parameter,public    :: nVarsTracer  = 1
  ! ***********************************************************************************************************
 
 END MODULE var_lookup

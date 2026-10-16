@@ -14,7 +14,8 @@ MODULE base_route
   ! --- base (abstract or template) reach routing method
   type, abstract :: base_route_rch
     CONTAINS
-    procedure(sub_route_rch), deferred :: route
+    ! Cray CCE requires explicit pass attribute on deferred procedure binding
+    procedure(sub_route_rch), deferred, pass :: route
   end type
 
   ! --- routing method container
