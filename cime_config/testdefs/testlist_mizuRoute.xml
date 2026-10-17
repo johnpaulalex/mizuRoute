@@ -272,6 +272,8 @@
     <machines>
       <machine name="derecho" compiler="intel" category="mizu"></machine>
       <machine name="derecho" compiler="gnu"   category="mizu"></machine>
+      <machine name="derecho" compiler="cray"   category="mizu"></machine>
+      <machine name="derecho" compiler="nvhpc"  category="mizu"></machine>
     </machines>
     <options>
       <option name="wallclock">00:20:00</option>
