@@ -15,13 +15,23 @@ if type module >/dev/null 2>&1; then
             FC_EXE="mpif90"
             MODULE_LIST="cmake intel cray-mpich netcdf ncarcompilers"
             ;;
+        cray|cce|Cray|CCE)
+            FC_COMPILER="cray"
+            FC_EXE="ftn"
+            MODULE_LIST="cmake cce cray-mpich netcdf ncarcompilers"
+            ;;
+        nvidia|nvhpc|Nvidia|NVHPC)
+            FC_COMPILER="nvidia"
+            FC_EXE="mpif90"
+            MODULE_LIST="cmake nvhpc cray-mpich netcdf ncarcompilers"
+            ;;
         gnu|gcc|GNU)
             FC_COMPILER="gnu"
             FC_EXE="mpif90"
             MODULE_LIST="cmake gcc cray-mpich netcdf ncarcompilers"
             ;;
         *)
-            echo "Unknown compiler '${TARGET_COMPILER}'. Choose from: intel, gnu."
+            echo "Unknown compiler '${TARGET_COMPILER}'. Choose from: intel, cray, nvidia, gnu."
             exit 1
             ;;
     esac
@@ -172,6 +182,8 @@ sed \
 # Force NetCDF-4/classic I/O for standalone run (avoiding Parallel NetCDF (default), which requires parallel MPI-IO and pnetcdf libraries not needed for serial standalone routing)
 echo 'pio_netcdf_type = "netcdf"' >> "${RUN_DIR}/mizuRoute.toml"
 
+# On Cray CCE (NCAR Derecho), dump full stack trace with line numbers and calling functions on failure
+export CRAY_FORT_DUMP_STACKTRACE=1
 echo "Running standalone mizuRoute with ${RUN_DIR}/mizuRoute.toml..."
 ( cd "${RUN_DIR}" && "${EXE_BIN}" "${RUN_DIR}/mizuRoute.toml" )
 
