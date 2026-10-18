@@ -680,10 +680,11 @@ CONTAINS
 
    ! 2. Populate tributary segments
    ! Get logical array indicating tributary outlet segments (size = nSeg)
-   allocate(isMainstem2d(nMainstem,2), stat=ierr)
+   ! Dimension extent 1 wraps 1D isMainstem into 2D array expected by lgc_tributary_outlet interface
+   allocate(isMainstem2d(nSeg,1), stat=ierr)
    if(ierr/=0)then; message=trim(message)//'problem allocating [isMainstem2d]'; return; endif
 
-   isMainstem2d = spread(isMainstem,2,1)  ! size: [nSeg x 2]
+   isMainstem2d = spread(isMainstem,2,1)  ! size: [nSeg x 1]
    call lgc_tributary_outlet(isMainstem2d, downIndex, isTribOutlet, ierr, cmessage)
    if(ierr/=0)then; message=trim(message)//trim(cmessage); return; endif
 
@@ -786,7 +787,7 @@ CONTAINS
    end do
 
    ! ensure that top (nNodes-1) largest domain should be unassigned so that they are assinged to non-main tasks below
-   if (nNodes>1) isAssigned(nDomain-nNodes+2:nDomain) = .false.
+   if (nNodes>1) isAssigned(max(1, nDomain-nNodes+2):nDomain) = .false.
 
    ! Distribute mainstem and "large" tributary to distributed cores (if more than one procs are available)
    nWork = 0
